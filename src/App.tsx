@@ -1,15 +1,26 @@
 import { useEffect, useRef, useState } from "react";
+import Cookies from "js-cookie";
 import gsap from "gsap";
+import { useAutoFetch } from "./hooks/useAutoFetch";
+import { MainLayout } from "./layouts/MainLayout";
+import { StepWelcome } from "./components/StepWelcome";
+import { StepName } from "./components/StepName";
+import { StepCapture } from "./components/StepCapture";
+import { StepFormCard } from "./components/StepFormCard";
+import { StepResult } from "./components/StepResult";
 
-const btn =
-  "rounded-full px-10 py-4 text-xl font-semibold disabled:opacity-30     transitionfocus-visible:outline-4 focus-visible:outline-offset-4";
+const BTN_CLASSES =
+  "rounded-full px-10 py-4 text-xl font-semibold disabled:opacity-30 transition focus-visible:outline-4 focus-visible:outline-offset-4";
 
 function App() {
+  useAutoFetch({});
+
   const wrapRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -38,93 +49,45 @@ function App() {
   };
 
   const reset = () => {
-    setName("");
-    go(0);
-  };
+  setName("");
+  setPreview(null);
+  
+  Cookies.remove("uploadedAvatar", { path: "" });
+  Cookies.remove("uploadedAvatar", { path: "/" });
+  
+  localStorage.removeItem("uploadedAvatar");
+  sessionStorage.removeItem("uploadedAvatar");
+  window.location.reload();
+};
 
   return (
-    <>
-      <main className="h-dvh overflow-hidden">
-        <div
-          className="will-change-transform transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
-          style={{ transform: `translate3d(0, -${step * 100}dvh, 0)` }}
-        >
-          <section
-            className={`relative flex h-dvh w-full flex-col items-center justify-center gap-8 px-6 text-center bg-blue-500 text-white`}
-          >
-            <h1 className="text-4xl font-extrabold tracking-tight">
-              Tagline + Logo
-            </h1>
-            <div ref={wrapRef} className="relative">
-              <button
-                className={`${btn} relative flex items-center gap-3 bg-[#ffd23f] text-[#1a1a2e] outline-white cursor-pointer`}
-                onClick={onStart}
-              >
-                Bắt đầu
-              </button>
-            </div>
-          </section>
+    <MainLayout step={step}>
+      <StepWelcome onNext={onStart} />
 
-          <section
-            className={`relative flex h-dvh w-full flex-col items-center justify-center gap-8 px-6 text-center bg-blue-100 text-[#1a1a2e]`}
-          >
-            <h2 >
-              nhập tên
-            </h2>
-            <input
-              ref={nameRef}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && name.trim() && go(2)}
-              placeholder="nhập tên"
-              maxLength={30}
-              className="w-full max-w-md border-b-4 border-[#2a3cff] bg-transparent py-3 text-center text-3xl outline-none placeholder:text-[#1a1a2e]/30"
-            />
-            <button
-              className={`${btn} bg-[#2a3cff] text-white outline-[#2a3cff] cursor-pointer`}
-              disabled={!name.trim()}
-              onClick={() => go(2)}
-            >
-              Tiếp tục
-            </button>
-          </section>
+      <StepName
+        nameRef={nameRef}
+        name={name}
+        setName={setName}
+        btnClass={BTN_CLASSES}
+        onNext={() => go(2)}
+      />
 
-          <section
-            className={`relative flex h-dvh w-full flex-col items-center justify-center gap-8 px-6 text-center bg-[#14142b] text-white`}
-          >
-            <h2>
-              Chọn ảnh <br /> hoặc <br /> Chụp ảnh
-            </h2>
+      <StepCapture
+        btnClass={BTN_CLASSES}
+        onNext={() => go(3)}
+        setPreview={setPreview}
+      />
 
-            <button
-              className={`${btn} bg-[#2a3cff] text-white outline-white cursor-pointer`}
-              onClick={() => go(3)}
-            >
-              Tạo ảnh
-            </button>
-          </section>
+      {/* Truyền trực tiếp name và preview sang StepFormCard để không phải gọi API lấy lại */}
+      <StepFormCard
+        name={name}
+        preview={preview}
+        onBack={() => go(2)}
+        onNext={() => go(4)}
+      />
 
-          <section
-            className={`relative flex h-dvh w-full flex-col items-center justify-center gap-8 px-6 text-center bg-[#ffd23f] text-[#1a1a2e]`}
-          >
-            <h2 >
-              Trang cuối
-            </h2>
-            <img
-              src={"."}
-              alt={`Ảnh AI`}
-              className="aspect-[3/4] h-[40dvh] border-white border-2"
-            />
-            <button
-              className={`${btn} bg-[#1a1a2e] text-white outline-[#1a1a2e] cursor-pointer`}
-              onClick={reset}
-            >
-              Chơi lại
-            </button>
-          </section>
-        </div>
-      </main>
-    </>
+      <StepResult btnClass={BTN_CLASSES} onReset={reset} />
+    </MainLayout>
   );
 }
 
