@@ -1,11 +1,13 @@
+import Cookies from "js-cookie";
+
 interface StepFormCardProps {
-  name: string;
   preview: string | null;
   onBack: () => void; 
   onNext: () => void; 
 }
 
-export function StepFormCard({ name, preview, onBack, onNext }: StepFormCardProps) {
+export function StepFormCard({ preview, onBack, onNext }: StepFormCardProps) {
+  const currentName = Cookies.get("GameName") || "";
   return (
     <section className="relative flex h-dvh w-full flex-col items-center justify-center px-4 overflow-y-auto py-6">
       <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full relative flex flex-col items-center gap-5 my-auto border border-white/50">
@@ -13,18 +15,15 @@ export function StepFormCard({ name, preview, onBack, onNext }: StepFormCardProp
           THIỆP MỜI SỰ KIỆN
         </div>
 
-        <div className="w-full flex flex-col items-center gap-5 mt-3">
+        <div className="w-full flex flex-col items-center gap-2 ">
           <div className="text-center">
             <h3 className="text-xl font-bold text-[#1A2B4C] flex items-center justify-center gap-2">
               Xác nhận thông tin
             </h3>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Thông tin và hình ảnh của bạn đã sẵn sàng để tạo thiệp
-            </p>
           </div>
 
           <div className="w-full flex flex-col items-center gap-4 bg-[#F2FAFF] border border-[#9DD4FA] rounded-2xl p-5 shadow-inner">
-            <div className="relative w-36 h-48 sm:w-40 sm:h-52 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-white flex items-center justify-center">
+            <div className="relative w-52 h-64 sm:w-40 sm:h-52 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-white flex items-center justify-center">
               {preview ? (
                 <img
                   src={preview}
@@ -43,7 +42,7 @@ export function StepFormCard({ name, preview, onBack, onNext }: StepFormCardProp
                 Tên của bạn
               </span>
               <div className="w-full bg-white border border-blue-100 rounded-xl py-2.5 px-4 text-center text-base sm:text-lg font-bold text-[#1A2B4C] shadow-xs truncate">
-                {name || "Chưa có tên"}
+                {currentName || "Chưa có tên"}
               </div>
             </div>
           </div>
@@ -59,8 +58,8 @@ export function StepFormCard({ name, preview, onBack, onNext }: StepFormCardProp
             <button
               type="button"
               onClick={onNext}
-              disabled={!name.trim() || !preview}
-              className="flex-1 bg-gradient-to-r from-[#FF4D94] to-[#FF2A80] text-white text-sm font-bold py-2 px-2 rounded-2xl shadow-lg hover:opacity-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!currentName.trim() || !preview}
+              className="flex-1 bg-linear-to-r from-[#FF4D94] to-[#FF2A80] text-white text-sm font-bold py-2 px-2 rounded-2xl shadow-lg hover:opacity-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               TẠO THIỆP NGAY
             </button>
