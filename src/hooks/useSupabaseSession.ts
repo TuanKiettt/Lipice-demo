@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { supabase } from "../lib/supabase"
 import type { Session } from "@supabase/supabase-js";
+import { useAppDispatch } from "../store/hooks";
+import { setAuthStatus } from "../store/authSlice";
 
 export function useSupabaseSession(
     onSessionChange?: (session: Session | null) => void
 ) {
-    const [session, setSession] = useState<Session | null>(null);
-    const [loading, setLoading] = useState(true);
+    const dispatch = useAppDispatch();
 
     useEffect(() => {
         let active = true;
@@ -17,14 +18,12 @@ export function useSupabaseSession(
             }
 
             if(active) {
-                setSession(data.session);
-                setLoading(false)
+                dispatch(setAuthStatus(data.session ? "authenticated" : "unauthenticated"));
             }
         })
 
         const {data} = supabase.auth.onAuthStateChange((_event, nextSession) => {
-            setSession(nextSession);
-            setLoading(false);
+            dispatch(setAuthStatus(nextSession ? "authenticated" : "unauthenticated"));
             onSessionChange?.(nextSession);
         })
 
@@ -32,7 +31,5 @@ export function useSupabaseSession(
             active = false;
             data.subscription.unsubscribe();
         }
-    }, [onSessionChange])
-
-    return {session, loading};
+    }, [dispatch, onSessionChange])
 }

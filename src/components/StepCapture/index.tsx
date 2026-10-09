@@ -3,14 +3,23 @@ import { Camera, FolderOpen, Focus } from "lucide-react";
 import { Cropper, type ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import { supabase } from "../../lib/supabase";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  setCameraStarting,
+  setCaptureError,
+  setCaptureMode,
+  setCaptureSource,
+  setUploading,
+} from "../../store/captureSlice";
+import {
+  setPreview,
+  setUploadedImageUrl,
+} from "../../store/workflowSlice";
 
 interface StepCaptureProps {
   onNext: () => void;
   btnClass: string;
-  setPreview: (val: string | null) => void;
 }
-
-type CaptureMode = "choice" | "camera" | "preview";
 
 type UploadUrlResponse = {
   upload_url: string;
@@ -30,16 +39,13 @@ const isUploadUrlResponse = (value: unknown): value is UploadUrlResponse =>
 export function StepCapture({
   onNext,
   btnClass,
-  setPreview: setParentPreview, // Đổi tên để phân biệt với state nội bộ
 }: StepCaptureProps) {
-  const [mode, setMode] = useState<CaptureMode>("choice");
-  const [sourceType, setSourceType] = useState<"camera" | "file" | null>(null);
+  const dispatch = useAppDispatch();
+  const { mode, sourceType, isStartingCamera, error, uploading } =
+    useAppSelector((state) => state.capture);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null); // Đổi tên state nội bộ tránh trùng lặp
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isStartingCamera, setIsStartingCamera] = useState(false);
-  const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,10 +62,10 @@ export function StepCapture({
     video.play().catch((playError: unknown) => {
       if (!active) return;
       console.error("Không thể phát video camera:", playError);
-      setError("Không thể hiển thị camera. Vui lòng thử lại.");
+      dispatch(setCaptureError("Không thể hiển thị camera. Vui lòng thử lại."));
       setStream(null);
-      setMode("choice");
-      setSourceType(null);
+      dispatch(setCaptureMode("choice"));
+      dispatch(setCaptureSource(null));
     });
 
     return () => {
@@ -67,7 +73,7 @@ export function StepCapture({
       stream.getTracks().forEach((track) => track.stop());
       video.srcObject = null;
     };
-  }, [stream]);
+  }, [dispatch, stream]);
 
   useEffect(() => {
     return () => {
@@ -78,10 +84,10 @@ export function StepCapture({
   }, []);
 
   const startCamera = async () => {
-    setError("");
-    setSourceType("camera");
-    setMode("camera");
-    setIsStartingCamera(true);
+    dispatch(setCaptureError(""));
+    dispatch(setCaptureSource("camera"));
+    dispatch(setCaptureMode("camera"));
+    dispatch(setCameraStarting(true));
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -95,16 +101,18 @@ export function StepCapture({
       setStream(mediaStream);
     } catch (cameraError) {
       console.error("Không thể mở camera:", cameraError);
-      setError(
-        cameraError instanceof DOMException &&
-          cameraError.name === "NotAllowedError"
-          ? "Bạn chưa cấp quyền sử dụng camera. Hãy cấp quyền rồi thử lại."
-          : "Không thể mở camera. Vui lòng kiểm tra thiết bị và thử lại.",
+      dispatch(
+        setCaptureError(
+          cameraError instanceof DOMException &&
+            cameraError.name === "NotAllowedError"
+            ? "Bạn chưa cấp quyền sử dụng camera. Hãy cấp quyền rồi thử lại."
+            : "Không thể mở camera. Vui lòng kiểm tra thiết bị và thử lại.",
+        ),
       );
-      setMode("choice");
-      setSourceType(null);
+      dispatch(setCaptureMode("choice"));
+      dispatch(setCaptureSource(null));
     } finally {
-      setIsStartingCamera(false);
+      dispatch(setCameraStarting(false));
     }
   };
 
@@ -117,7 +125,11 @@ export function StepCapture({
       video.videoWidth === 0 ||
       video.videoHeight === 0
     ) {
-      setError("Camera chưa sẵn sàng. Vui lòng chờ một chút rồi thử lại.");
+      dispatch(
+        setCaptureError(
+          "Camera chưa sẵn sàng. Vui lòng chờ một chút rồi thử lại.",
+        ),
+      );
       return;
     }
 
@@ -139,7 +151,9 @@ export function StepCapture({
     canvas.height = 800;
     const context = canvas.getContext("2d");
     if (!context) {
-      setError("Không thể xử lý ảnh từ camera. Vui lòng thử lại.");
+      dispatch(
+        setCaptureError("Không thể xử lý ảnh từ camera. Vui lòng thử lại."),
+      );
       return;
     }
 
@@ -160,8 +174,8 @@ export function StepCapture({
     context.restore();
 
     setPreviewUrl(canvas.toDataURL("image/jpeg", 0.9));
-    setError("");
-    setMode("preview");
+    dispatch(setCaptureError(""));
+    dispatch(setCaptureMode("preview"));
     setStream(null);
   };
 
@@ -169,7 +183,7 @@ export function StepCapture({
     if (countdown !== null || isStartingCamera) return;
 
     let remaining = 3;
-    setError("");
+    dispatch(setCaptureError(""));
     setCountdown(remaining);
     countdownIntervalRef.current = window.setInterval(() => {
       remaining -= 1;
@@ -187,7 +201,7 @@ export function StepCapture({
   };
 
   const handleFileClick = () => {
-    setError("");
+    dispatch(setCaptureError(""));
     fileInputRef.current?.click();
   };
 
@@ -196,7 +210,7 @@ export function StepCapture({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("Vui lòng chọn một tệp hình ảnh.");
+      dispatch(setCaptureError("Vui lòng chọn một tệp hình ảnh."));
       event.target.value = "";
       return;
     }
@@ -204,16 +218,20 @@ export function StepCapture({
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string") {
-        setError("Không thể đọc ảnh đã chọn. Vui lòng thử tệp khác.");
+        dispatch(
+          setCaptureError("Không thể đọc ảnh đã chọn. Vui lòng thử tệp khác."),
+        );
         return;
       }
-      setSourceType("file");
+      dispatch(setCaptureSource("file"));
       setPreviewUrl(reader.result);
-      setError("");
-      setMode("preview");
+      dispatch(setCaptureError(""));
+      dispatch(setCaptureMode("preview"));
     };
     reader.onerror = () => {
-      setError("Không thể đọc ảnh đã chọn. Vui lòng thử tệp khác.");
+      dispatch(
+        setCaptureError("Không thể đọc ảnh đã chọn. Vui lòng thử tệp khác."),
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -226,21 +244,24 @@ export function StepCapture({
     setCountdown(null);
     setStream(null);
     setPreviewUrl(null);
-    setParentPreview(null);
-    setSourceType(null);
-    setError("");
-    setMode("choice");
+    dispatch(setPreview(null));
+    dispatch(setUploadedImageUrl(null));
+    dispatch(setCaptureSource(null));
+    dispatch(setCaptureError(""));
+    dispatch(setCaptureMode("choice"));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleContinue = async () => {
     if (!previewUrl) {
-      setError("Vui lòng chụp ảnh hoặc chọn ảnh trước khi tiếp tục.");
+      dispatch(
+        setCaptureError("Vui lòng chụp ảnh hoặc chọn ảnh trước khi tiếp tục."),
+      );
       return;
     }
 
-    setUploading(true);
-    setError("");
+    dispatch(setUploading(true));
+    dispatch(setCaptureError(""));
 
     try {
       const finalPreview =
@@ -255,7 +276,11 @@ export function StepCapture({
           : previewUrl;
 
       if (!finalPreview) {
-        setError("Chưa thể xử lý ảnh. Vui lòng căn chỉnh hoặc chọn ảnh khác.");
+        dispatch(
+          setCaptureError(
+            "Chưa thể xử lý ảnh. Vui lòng căn chỉnh hoặc chọn ảnh khác.",
+          ),
+        );
         return;
       }
 
@@ -274,7 +299,7 @@ export function StepCapture({
         throw new Error("Ảnh sau khi xử lý vượt quá giới hạn 5 MB.");
       }
 
-      const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, "")}/functions/v1`;
+      const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
       const callPrivateFunction = async (
         path: string,
         body: Record<string, string>,
@@ -338,17 +363,20 @@ export function StepCapture({
 
       console.log("avatar_url:", uploadInfo.url);
 
-      setParentPreview(finalPreview);
+      dispatch(setPreview(finalPreview));
+      dispatch(setUploadedImageUrl(uploadInfo.url));
       onNext();
     } catch (cropError) {
       console.error("Không thể upload hoặc cập nhật ảnh đại diện:", cropError);
-      setError(
-        cropError instanceof Error
-          ? cropError.message
-          : "Không thể upload hoặc cập nhật ảnh đại diện. Vui lòng thử lại.",
+      dispatch(
+        setCaptureError(
+          cropError instanceof Error
+            ? cropError.message
+            : "Không thể upload hoặc cập nhật ảnh đại diện. Vui lòng thử lại.",
+        ),
       );
     } finally {
-      setUploading(false);
+      dispatch(setUploading(false));
     }
   };
 

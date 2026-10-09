@@ -12,7 +12,7 @@ export function StepWelcome({ onNext }: StepWelcomeProps) {
           <img
             src="/tagline 1.png"
             alt="Tagline"
-            className="w-auto max-w-[450px] h-auto object-contain"
+            className="w-auto max-w-112.5 h-auto object-contain"
           />
         </div>
 
@@ -21,7 +21,7 @@ export function StepWelcome({ onNext }: StepWelcomeProps) {
           <img
             src="/TIME 1.png"
             alt="time"
-            className="w-auto max-w-[650px] h-auto object-contain"
+            className="w-auto max-w-162.5 h-auto object-contain"
           />
         </div>
 

@@ -1,9 +1,15 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { registerSchema, type RegisterFormData } from "../../schema/authSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "../../lib/supabase";
 import Cookies from "js-cookie";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  registrationFailed,
+  registrationNeedsConfirmation,
+  registrationStarted,
+  registrationSucceeded,
+} from "../../store/authSlice";
 
 const apiGetUser = import.meta.env.VITE_API_GETUSER;
 
@@ -13,9 +19,10 @@ type RegisterFormProps = {
 };
 
 export default function RegisterForm({ btnClass, onNext }: RegisterFormProps) {
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { error, message, loading } = useAppSelector(
+    (state) => state.auth.registration,
+  );
 
   const {
     register,
@@ -26,9 +33,7 @@ export default function RegisterForm({ btnClass, onNext }: RegisterFormProps) {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
-    setLoading(true);
-    setError("");
-    setMessage("");
+    dispatch(registrationStarted());
 
     let hasSession: boolean;
     try {
@@ -48,12 +53,13 @@ export default function RegisterForm({ btnClass, onNext }: RegisterFormProps) {
       hasSession = authData.session !== null;
     } catch (registerError) {
       console.error("Không thể đăng ký:", registerError);
-      setError(
-        registerError instanceof Error
-          ? registerError.message
-          : "Không thể đăng ký lúc này. Vui lòng thử lại.",
+      dispatch(
+        registrationFailed(
+          registerError instanceof Error
+            ? registerError.message
+            : "Không thể đăng ký lúc này. Vui lòng thử lại.",
+        ),
       );
-      setLoading(false);
       return;
     }
 
@@ -84,15 +90,17 @@ export default function RegisterForm({ btnClass, onNext }: RegisterFormProps) {
     }
 
     Cookies.set("GameName", data.name.trim());
-    setLoading(false);
 
     if (!hasSession) {
-      setMessage(
-        "Supabase chưa tạo phiên đăng nhập. Nếu đây là tài khoản mới, hãy kiểm tra email để xác nhận; nếu đã có tài khoản, hãy chuyển sang Đăng nhập.",
+      dispatch(
+        registrationNeedsConfirmation(
+          "Supabase chưa tạo phiên đăng nhập. Nếu đây là tài khoản mới, hãy kiểm tra email để xác nhận; nếu đã có tài khoản, hãy chuyển sang Đăng nhập.",
+        ),
       );
       return;
     }
 
+    dispatch(registrationSucceeded());
     onNext();
   };
 

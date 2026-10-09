@@ -1,6 +1,7 @@
-import { useState } from "react";
 import RegisterForm from "../auth/RegisterForm";
 import { LoginForm } from "../auth/LoginForm";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { setActiveAuthForm } from "../../store/authSlice";
 
 interface StepAuthProps {
   btnClass: string;
@@ -8,7 +9,8 @@ interface StepAuthProps {
 }
 
 export function StepAuth({ btnClass, onNext }: StepAuthProps) {
-  const [isLogin, setIsLogin] = useState(false); // false: Đăng ký, true: Đăng nhập
+  const dispatch = useAppDispatch();
+  const isLogin = useAppSelector((state) => state.auth.activeForm === "login");
 
   return (
     <section className="relative flex h-dvh w-full flex-col items-center justify-center px-6 text-center">
@@ -31,7 +33,7 @@ export function StepAuth({ btnClass, onNext }: StepAuthProps) {
         <div className="flex w-full bg-[#F2FAFF] p-1 rounded-2xl border border-[#9DD4FA]">
           <button
             type="button"
-            onClick={() => setIsLogin(false)}
+            onClick={() => dispatch(setActiveAuthForm("register"))}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
               !isLogin
                 ? "bg-[#FF4D94] text-white shadow-md"
@@ -42,7 +44,7 @@ export function StepAuth({ btnClass, onNext }: StepAuthProps) {
           </button>
           <button
             type="button"
-            onClick={() => setIsLogin(true)}
+            onClick={() => dispatch(setActiveAuthForm("login"))}
             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
               isLogin
                 ? "bg-[#FF4D94] text-white shadow-md"

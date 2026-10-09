@@ -1,8 +1,9 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormData } from "../../schema/authSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "../../lib/supabase";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { loginFailed, loginStarted, loginSucceeded } from "../../store/authSlice";
 
 type LoginFormProps = {
   btnClass: string;
@@ -10,8 +11,8 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ btnClass, onNext }: LoginFormProps) {
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { error, loading } = useAppSelector((state) => state.auth.login);
 
   const {
     register,
@@ -22,22 +23,31 @@ export function LoginForm({ btnClass, onNext }: LoginFormProps) {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setLoading(true);
-    setError("");
+    dispatch(loginStarted());
 
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email: data.email.trim(),
-      password: data.password,
-    });
+    try {
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: data.email.trim(),
+        password: data.password,
+      });
 
-    setLoading(false);
+      if (loginError) {
+        dispatch(loginFailed(loginError.message));
+        return;
+      }
 
-    if (loginError) {
-      setError(loginError.message);
-      return;
+      dispatch(loginSucceeded());
+      onNext();
+    } catch (loginError) {
+      console.error("Không thể đăng nhập:", loginError);
+      dispatch(
+        loginFailed(
+          loginError instanceof Error
+            ? loginError.message
+            : "Không thể đăng nhập lúc này. Vui lòng thử lại.",
+        ),
+      );
     }
-
-    onNext();
   };
 
   return (

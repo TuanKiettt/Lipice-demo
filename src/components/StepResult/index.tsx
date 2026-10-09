@@ -1,21 +1,113 @@
+import { useState } from "react";
+import { useAppSelector } from "../../store/hooks";
+
 interface StepResultProps {
-  btnClass: string;
   onReset: () => void;
 }
 
-export function StepResult({ btnClass, onReset }: StepResultProps) {
+const getVideoMimeType = (url: string): string | null => {
+  const pathname = new URL(url).pathname.toLowerCase();
+  if (pathname.endsWith(".mp4")) return "video/mp4";
+  if (pathname.endsWith(".webm")) return "video/webm";
+  if (pathname.endsWith(".ogg")) return "video/ogg";
+  if (pathname.endsWith(".mov")) return "video/quicktime";
+  return null;
+};
+
+export function StepResult({ onReset }: StepResultProps) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const generatedMediaUrl = useAppSelector(
+    (state) => state.workflow.generatedMediaUrl,
+  );
+  const videoMimeType = generatedMediaUrl
+    ? getVideoMimeType(generatedMediaUrl)
+    : null;
+
+  const handleDownload = async () => {
+    if (!generatedMediaUrl) return;
+
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      const response = await fetch(generatedMediaUrl);
+      if (!response.ok) {
+        throw new Error(`Tải video thất bại (${response.status}).`);
+      }
+
+      const videoBlob = await response.blob();
+      const downloadUrl = URL.createObjectURL(videoBlob);
+      const link = document.createElement("a");
+      const extension =
+        new URL(generatedMediaUrl).pathname.match(/\.(mp4|webm|ogg|mov)$/i)?.[0] ??
+        ".mp4";
+      link.href = downloadUrl;
+      link.download = `thiep-lipice${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    } catch (error) {
+      console.error("Không thể tải video thiệp:", error);
+      setDownloadError(
+        error instanceof TypeError
+          ? "Máy chủ video không cho phép tải trực tiếp từ trình duyệt (CORS)."
+          : error instanceof Error
+            ? error.message
+            : "Không thể tải video. Vui lòng thử lại.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
-    <section className="relative flex h-dvh w-full flex-col items-center justify-center px-6 text-center">
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 max-w-md w-full flex flex-col items-center gap-6">
-        <h2 className="text-2xl font-bold text-gray-800">Thành quả của bạn</h2>
-        <img
-          src="."
-          alt="Ảnh AI"
-          className="aspect-3/4 h-[35dvh] border-white border-2 rounded-lg shadow-inner object-cover bg-gray-100"
-        />
+    <section className="fixed inset-0 z-100 h-dvh w-screen overflow-hidden bg-black">
+      {generatedMediaUrl && videoMimeType ? (
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 h-full w-full object-contain"
+          aria-label="Video thiệp được tạo bằng AI"
+        >
+          <source src={generatedMediaUrl} type={videoMimeType} />
+          Trình duyệt của bạn không hỗ trợ phát video.
+        </video>
+      ) : (
+        <p
+          role="alert"
+          className="absolute inset-0 flex items-center justify-center px-6 text-center text-white"
+        >
+          Không tìm thấy video thiệp đã tạo. Vui lòng thử lại.
+        </p>
+      )}
+      {downloadError && (
+        <p
+          role="alert"
+          className="absolute bottom-24 left-1/2 z-10 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl bg-red-950/85 px-4 py-3 text-center text-sm text-white"
+        >
+          {downloadError}
+        </p>
+      )}
+      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-3">
+        {videoMimeType && (
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
+            className="rounded-full bg-white/90 px-6 py-3 text-base font-bold text-[#F553A7] shadow-lg backdrop-blur transition hover:bg-white disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            {downloading ? "Đang tải..." : "Tải video"}
+          </button>
+        )}
         <button
-          className={`${btnClass} w-full bg-[#1a1a2e] text-white outline-[#1a1a2e] cursor-pointer shadow-md hover:bg-black`}
+          type="button"
           onClick={onReset}
+          disabled={downloading}
+          className="rounded-full bg-[#F553A7] px-8 py-3 text-base font-bold text-white shadow-lg backdrop-blur transition hover:bg-black/85 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
           Chơi lại
         </button>

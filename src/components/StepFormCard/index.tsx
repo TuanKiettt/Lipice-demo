@@ -1,13 +1,33 @@
 import Cookies from "js-cookie";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { generateInvitation } from "../../store/invitationThunks";
 
 interface StepFormCardProps {
-  preview: string | null;
   onBack: () => void; 
   onNext: () => void; 
 }
 
-export function StepFormCard({ preview, onBack, onNext }: StepFormCardProps) {
+export function StepFormCard({ onBack, onNext }: StepFormCardProps) {
+  const dispatch = useAppDispatch();
+  const {
+    preview,
+    uploadedImageUrl,
+    generationLoading,
+    generationError,
+  } = useAppSelector(
+    (state) => state.workflow,
+  );
   const currentName = Cookies.get("GameName") || "";
+
+  const handleCreateInvitation = async () => {
+    const action = await dispatch(
+      generateInvitation({ fullName: currentName.trim() }),
+    );
+    if (generateInvitation.fulfilled.match(action)) {
+      onNext();
+    }
+  };
+
   return (
     <section className="relative flex h-dvh w-full flex-col items-center justify-center px-4 overflow-y-auto py-6">
       <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full relative flex flex-col items-center gap-5 my-auto border border-white/50">
@@ -51,19 +71,33 @@ export function StepFormCard({ preview, onBack, onNext }: StepFormCardProps) {
             <button
               type="button"
               onClick={onBack}
+              disabled={generationLoading}
               className="flex-1 py-2 bg-gray-100 text-[#F553A7] font-semibold rounded-2xl hover:bg-gray-200 transition cursor-pointer text-sm"
             >
               Chụp lại
             </button>
             <button
               type="button"
-              onClick={onNext}
-              disabled={!currentName.trim() || !preview}
+              onClick={handleCreateInvitation}
+              disabled={
+                !currentName.trim() ||
+                !preview ||
+                !uploadedImageUrl ||
+                generationLoading
+              }
               className="flex-1 bg-linear-to-r from-[#FF4D94] to-[#FF2A80] text-white text-sm font-bold py-2 px-2 rounded-2xl shadow-lg hover:opacity-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              TẠO THIỆP NGAY
+              {generationLoading ? "ĐANG TẠO THIỆP..." : "TẠO THIỆP NGAY"}
             </button>
           </div>
+          {generationError && (
+            <p
+              role="alert"
+              className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-600"
+            >
+              {generationError}
+            </p>
+          )}
         </div>
       </div>
     </section>
